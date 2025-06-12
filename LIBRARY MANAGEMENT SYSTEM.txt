@@ -1,0 +1,636 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <time.h>
+
+#define MAX_TITLE_LEN 100
+#define MAX_AUTHOR_LEN 50
+#define NUM_SECTIONS 9
+#define MAX_USERS 50
+#define MAX_BORROWED 5
+#define MAX_BOOKS_PER_SECTION 50
+#define BORROW_PERIOD_DAYS 31
+
+
+const char* const sectionNames[NUM_SECTIONS] = {
+    "Indian History", "World History", "Philosophy",
+    "Economics", "Physics", "Mathematics",
+    "Computer Science", "Biology", "Literature"
+};
+
+typedef struct Book {
+    char title[MAX_TITLE_LEN];
+    char author[MAX_AUTHOR_LEN];
+    int isBorrowed;
+    time_t dueDate;
+    struct Book* next;
+} Book;
+
+typedef struct User {
+    char name[50];
+    char entryNumber[20];  
+    int borrowedBooks[MAX_BORROWED][2];
+    time_t dueDates[MAX_BORROWED];
+    int borrowedCount;
+    float lateFees;
+} User;
+
+typedef struct {
+    const char* name;
+    Book* books[MAX_BOOKS_PER_SECTION];
+    int bookCount;
+} Section;
+
+Section library[NUM_SECTIONS];
+User users[MAX_USERS];
+int userCount = 0;
+
+void clearInputBuffer() {
+    while (getchar() != '\n');
+}
+
+int readInt(const char* prompt) {
+    int value;
+    while (1) {
+        printf("%s", prompt);
+        if (scanf("%d", &value) == 1) {
+            clearInputBuffer();
+            return value;
+        }
+        printf("Invalid input. Please enter a number.\n");
+        clearInputBuffer();
+    }
+}
+
+void printDate(time_t date) {
+    char buffer[30];
+    strftime(buffer, sizeof(buffer), "%d/%m/%Y", localtime(&date));
+    printf("%s", buffer);
+}
+
+time_t getDueDate() {
+    time_t now = time(NULL);
+    return now + (BORROW_PERIOD_DAYS * 24 * 60 * 60);
+}
+
+void initializeLibrary() {
+    for (int i = 0; i < NUM_SECTIONS; i++) {
+        library[i].name = sectionNames[i];
+        library[i].bookCount = 0;
+        for (int j = 0; j < MAX_BOOKS_PER_SECTION; j++) {
+            library[i].books[j] = NULL;
+        }
+    }
+
+
+    const char* indianTitles[] = {
+        "India After Gandhi", "Early India", "The Argumentative Indian", 
+        "Discovery of India", "Freedom at Midnight", "The Last Mughal",
+        "The Great Partition", "India's Struggle for Independence", 
+        "The Wonder That Was India", "An Era of Darkness", 
+        "The Ocean of Churn", "Land of the Seven Rivers", 
+        "The Hindus: An Alternative History", "The India Way", 
+        "The Siege of Delhi", "Rebels Against the Raj", 
+        "Gandhi: The Years That Changed the World", "The Man Who Saved India", 
+        "Nehru: The Invention of India", "Ambedkar: A Life", 
+        "Savarkar: Echoes from a Forgotten Past", "The RSS: A View to the Inside", 
+        "The Emergency: A Personal History", "1991: How P.V. Narasimha Rao Made History", 
+        "The Accidental Prime Minister"
+    };
+    const char* indianAuthors[] = {
+        "Ramachandra Guha", "Romila Thapar", "Amartya Sen", 
+        "Jawaharlal Nehru", "Dominique Lapierre", "William Dalrymple",
+        "Yasmin Khan", "Bipan Chandra", "A.L. Basham", "Shashi Tharoor",
+        "Sanjeev Sanyal", "Sanjeev Sanyal", "Wendy Doniger", 
+        "S. Jaishankar", "Madhusree Mukerjee", "Ramachandra Guha",
+        "Ramachandra Guha", "Sagarika Ghose", "Shashi Tharoor", 
+        "Shashi Tharoor", "Vikram Sampath", "Walter Andersen", 
+        "Coomi Kapoor", "Sanjaya Baru", "Sanjaya Baru"
+    };
+    for (int i = 0; i < 25; i++) {
+        Book* newBook = (Book*)malloc(sizeof(Book));
+        strcpy(newBook->title, indianTitles[i]);
+        strcpy(newBook->author, indianAuthors[i]);
+        newBook->isBorrowed = 0;
+        newBook->dueDate = 0;
+        library[0].books[library[0].bookCount++] = newBook;
+    }
+
+ 
+    const char* worldTitles[] = {
+        "Guns, Germs, and Steel", "Sapiens", "Homo Deus", 
+        "The Silk Roads", "The History of the Ancient World", 
+        "The Crusades", "The Rise and Fall of the Third Reich", 
+        "A People's History of the United States", "Postwar", 
+        "The Second World War", "The Cold War", "1491", 
+        "The Origins of Political Order", "Why Nations Fail", 
+        "The Clash of Civilizations", "The End of History", 
+        "The Age of Extremes", "The Sleepwalkers", 
+        "The Guns of August", "The Proud Tower", 
+        "The Romanovs", "SPQR", "The Templars", 
+        "Genghis Khan and the Making of the Modern World", 
+        "The Habsburgs"
+    };
+    const char* worldAuthors[] = {
+        "Jared Diamond", "Yuval Noah Harari", "Yuval Noah Harari", 
+        "Peter Frankopan", "Susan Wise Bauer", "Thomas Asbridge", 
+        "William L. Shirer", "Howard Zinn", "Tony Judt", 
+        "Antony Beevor", "John Lewis Gaddis", "Charles C. Mann", 
+        "Francis Fukuyama", "Daron Acemoglu", "Samuel Huntington", 
+        "Francis Fukuyama", "Eric Hobsbawm", "Christopher Clark", 
+        "Barbara Tuchman", "Barbara Tuchman", "Simon Sebag Montefiore", 
+        "Mary Beard", "Dan Jones", "Jack Weatherford", 
+        "Martyn Rady"
+    };
+    for (int i = 0; i < 25; i++) {
+        Book* newBook = (Book*)malloc(sizeof(Book));
+        strcpy(newBook->title, worldTitles[i]);
+        strcpy(newBook->author, worldAuthors[i]);
+        newBook->isBorrowed = 0;
+        newBook->dueDate = 0;
+        library[1].books[library[1].bookCount++] = newBook;
+    }
+
+   
+    const char* philosophyTitles[] = {
+        "Meditations", "Republic", "Thus Spoke Zarathustra", 
+        "Beyond Good and Evil", "Critique of Pure Reason", 
+        "Being and Time", "The Myth of Sisyphus", 
+        "The Stranger", "The Second Sex", "The Ethics", 
+        "The Prince", "The Social Contract", "The Communist Manifesto", 
+        "The Structure of Scientific Revolutions", "The Open Society and Its Enemies", 
+        "The Problems of Philosophy", "Tractatus Logico-Philosophicus", 
+        "Philosophical Investigations", "The Phenomenology of Spirit", 
+        "Being and Nothingness", "Fear and Trembling", 
+        "Either/Or", "The Will to Power", "The Gay Science", 
+        "The World as Will and Representation"
+    };
+    const char* philosophyAuthors[] = {
+        "Marcus Aurelius", "Plato", "Friedrich Nietzsche", 
+        "Friedrich Nietzsche", "Immanuel Kant", "Martin Heidegger", 
+        "Albert Camus", "Albert Camus", "Simone de Beauvoir", 
+        "Baruch Spinoza", "Niccolò Machiavelli", "Jean-Jacques Rousseau", 
+        "Karl Marx", "Thomas Kuhn", "Karl Popper", 
+        "Bertrand Russell", "Ludwig Wittgenstein", "Ludwig Wittgenstein", 
+        "Georg Wilhelm Friedrich Hegel", "Jean-Paul Sartre", 
+        "Søren Kierkegaard", "Søren Kierkegaard", "Friedrich Nietzsche", 
+        "Friedrich Nietzsche", "Arthur Schopenhauer"
+    };
+    for (int i = 0; i < 25; i++) {
+        Book* newBook = (Book*)malloc(sizeof(Book));
+        strcpy(newBook->title, philosophyTitles[i]);
+        strcpy(newBook->author, philosophyAuthors[i]);
+        newBook->isBorrowed = 0;
+        newBook->dueDate = 0;
+        library[2].books[library[2].bookCount++] = newBook;
+    }
+
+
+    const char* economicsTitles[] = {
+        "The Wealth of Nations", "Capital in the Twenty-First Century", 
+        "Freakonomics", "Thinking, Fast and Slow", "The Undercover Economist", 
+        "Nudge", "The Big Short", "Flash Boys", "The Intelligent Investor", 
+        "The General Theory of Employment, Interest and Money", 
+        "The Road to Serfdom", "Animal Spirits", "The Ascent of Money", 
+        "Poor Economics", "Why Nations Fail", "The Bottom Billion", 
+        "Development as Freedom", "The End of Poverty", 
+        "The Shock Doctrine", "23 Things They Don't Tell You About Capitalism", 
+        "Debt: The First 5000 Years", "The Price of Inequality", 
+        "The Great Transformation", "The Theory of Moral Sentiments", 
+        "The Affluent Society"
+    };
+    const char* economicsAuthors[] = {
+        "Adam Smith", "Thomas Piketty", "Steven Levitt", 
+        "Daniel Kahneman", "Tim Harford", "Richard Thaler", 
+        "Michael Lewis", "Michael Lewis", "Benjamin Graham", 
+        "John Maynard Keynes", "Friedrich Hayek", "George Akerlof", 
+        "Niall Ferguson", "Abhijit Banerjee", "Daron Acemoglu", 
+        "Paul Collier", "Amartya Sen", "Jeffrey Sachs", 
+        "Naomi Klein", "Ha-Joon Chang", "David Graeber", 
+        "Joseph Stiglitz", "Karl Polanyi", "Adam Smith", 
+        "John Kenneth Galbraith"
+    };
+    for (int i = 0; i < 25; i++) {
+        Book* newBook = (Book*)malloc(sizeof(Book));
+        strcpy(newBook->title, economicsTitles[i]);
+        strcpy(newBook->author, economicsAuthors[i]);
+        newBook->isBorrowed = 0;
+        newBook->dueDate = 0;
+        library[3].books[library[3].bookCount++] = newBook;
+    }
+
+  
+    const char* physicsTitles[] = {
+        "A Brief History of Time", "The Elegant Universe", 
+        "The Feynman Lectures on Physics", "Six Easy Pieces", 
+        "The Theory of Everything", "Cosmos", "Astrophysics for People in a Hurry", 
+        "The Hidden Reality", "The Fabric of the Cosmos", "Quantum Mechanics: The Theoretical Minimum", 
+        "Seven Brief Lessons on Physics", "The Order of Time", "Reality Is Not What It Seems", 
+        "Black Holes and Time Warps", "The First Three Minutes", "The Character of Physical Law", 
+        "Surely You're Joking, Mr. Feynman!", "QED: The Strange Theory of Light and Matter", 
+        "The Road to Reality", "The Emperor's New Mind", "The Selfish Gene", 
+        "The Grand Design", "The Universe in a Nutshell", "Hyperspace", 
+        "Parallel Worlds"
+    };
+    const char* physicsAuthors[] = {
+        "Stephen Hawking", "Brian Greene", "Richard Feynman", 
+        "Richard Feynman", "Stephen Hawking", "Carl Sagan", 
+        "Neil deGrasse Tyson", "Brian Greene", "Brian Greene", 
+        "Leonard Susskind", "Carlo Rovelli", "Carlo Rovelli", 
+        "Carlo Rovelli", "Kip Thorne", "Steven Weinberg", 
+        "Richard Feynman", "Richard Feynman", "Richard Feynman", 
+        "Roger Penrose", "Roger Penrose", "Richard Dawkins", 
+        "Stephen Hawking", "Stephen Hawking", "Michio Kaku", 
+        "Michio Kaku"
+    };
+    for (int i = 0; i < 25; i++) {
+        Book* newBook = (Book*)malloc(sizeof(Book));
+        strcpy(newBook->title, physicsTitles[i]);
+        strcpy(newBook->author, physicsAuthors[i]);
+        newBook->isBorrowed = 0;
+        newBook->dueDate = 0;
+        library[4].books[library[4].bookCount++] = newBook;
+    }
+
+   
+    const char* mathTitles[] = {
+        "Principia Mathematica", "A Mathematician's Apology", 
+        "Gödel, Escher, Bach", "Flatland", "The Joy of x", 
+        "How to Solve It", "Fermat's Last Theorem", "The Code Book", 
+        "The Man Who Knew Infinity", "A History of Pi", 
+        "The Music of the Primes", "Infinite Powers", "The Number Devil", 
+        "Zero: The Biography of a Dangerous Idea", "The Golden Ratio", 
+        "The Drunkard's Walk", "The Colossal Book of Mathematics", 
+        "Concepts of Modern Mathematics", "Mathematics: Its Content, Methods and Meaning", 
+        "What Is Mathematics?", "The Princeton Companion to Mathematics", 
+        "Introduction to the Theory of Computation", "The Art of Mathematics", 
+        "The Millennium Problems", "Symmetry"
+    };
+    const char* mathAuthors[] = {
+        "Isaac Newton", "G.H. Hardy", "Douglas Hofstadter", 
+        "Edwin Abbott", "Steven Strogatz", "George Pólya", 
+        "Simon Singh", "Simon Singh", "Robert Kanigel", 
+        "Petr Beckmann", "Marcus du Sautoy", "Steven Strogatz", 
+        "Hans Magnus Enzensberger", "Charles Seife", "Mario Livio", 
+        "Leonard Mlodinow", "Martin Gardner", "Ian Stewart", 
+        "A. D. Aleksandrov", "Richard Courant", "Timothy Gowers", 
+        "Michael Sipser", "Jerry P. King", "Keith Devlin", 
+        "Hermann Weyl"
+    };
+    for (int i = 0; i < 25; i++) {
+        Book* newBook = (Book*)malloc(sizeof(Book));
+        strcpy(newBook->title, mathTitles[i]);
+        strcpy(newBook->author, mathAuthors[i]);
+        newBook->isBorrowed = 0;
+        newBook->dueDate = 0;
+        library[5].books[library[5].bookCount++] = newBook;
+    }
+
+    
+    const char* csTitles[] = {
+        "Let Us C", "Clean Code", "Introduction to Algorithms", 
+        "The Pragmatic Programmer", "Code Complete", 
+        "Structure and Interpretation of Computer Programs", 
+        "Design Patterns", "The C Programming Language", 
+        "Artificial Intelligence: A Modern Approach", 
+        "The Art of Computer Programming", "Compilers: Principles, Techniques, and Tools", 
+        "Computer Networks", "Operating System Concepts", 
+        "Database System Concepts", "Computer Organization and Design", 
+        "Head First Design Patterns", "The Mythical Man-Month", 
+        "Gödel, Escher, Bach", "Algorithms to Live By", 
+        "The Soul of a New Machine", "Hackers: Heroes of the Computer Revolution", 
+        "Code: The Hidden Language of Computer Hardware and Software", 
+        "The Innovators", "The Master Algorithm", 
+        "Weapons of Math Destruction"
+    };
+    const char* csAuthors[] = {
+        "Yashavant Kanetkar", "Robert Martin", "Thomas Cormen", 
+        "Andrew Hunt", "Steve McConnell", "Harold Abelson", 
+        "Erich Gamma", "Brian Kernighan", "Stuart Russell", 
+        "Donald Knuth", "Alfred Aho", "Andrew Tanenbaum", 
+        "Abraham Silberschatz", "Abraham Silberschatz", "David Patterson", 
+        "Eric Freeman", "Frederick Brooks", "Douglas Hofstadter", 
+        "Brian Christian", "Tracy Kidder", "Steven Levy", 
+        "Charles Petzold", "Walter Isaacson", "Pedro Domingos", 
+        "Cathy O'Neil"
+    };
+    for (int i = 0; i < 25; i++) {
+        Book* newBook = (Book*)malloc(sizeof(Book));
+        strcpy(newBook->title, csTitles[i]);
+        strcpy(newBook->author, csAuthors[i]);
+        newBook->isBorrowed = 0;
+        newBook->dueDate = 0;
+        library[6].books[library[6].bookCount++] = newBook;
+    }
+
+
+    const char* biologyTitles[] = {
+        "The Origin of Species", "The Selfish Gene", "The Double Helix", 
+        "The Blind Watchmaker", "The Red Queen", "The Vital Question", 
+        "The Gene: An Intimate History", "Sapiens", "Homo Deus", 
+        "The Immortal Life of Henrietta Lacks", "The Sixth Extinction", 
+        "The Emperor of All Maladies", "The Beak of the Finch", 
+        "The Diversity of Life", "The Botany of Desire", "The Hidden Life of Trees", 
+        "The Story of the Human Body", "Why We Sleep", "The Body", 
+        "I Contain Multitudes", "The Invention of Nature", "Life on the Edge", 
+        "The Epigenetics Revolution", "The Extended Phenotype", 
+        "The Ancestor's Tale"
+    };
+    const char* biologyAuthors[] = {
+        "Charles Darwin", "Richard Dawkins", "James Watson", 
+        "Richard Dawkins", "Matt Ridley", "Nick Lane", 
+        "Siddhartha Mukherjee", "Yuval Noah Harari", "Yuval Noah Harari", 
+        "Rebecca Skloot", "Elizabeth Kolbert", "Siddhartha Mukherjee", 
+        "Jonathan Weiner", "Edward O. Wilson", "Michael Pollan", 
+        "Peter Wohlleben", "Daniel Lieberman", "Matthew Walker", 
+        "Bill Bryson", "Ed Yong", "Andrea Wulf", "Johnjoe McFadden", 
+        "Nessa Carey", "Richard Dawkins", "Richard Dawkins"
+    };
+    for (int i = 0; i < 25; i++) {
+        Book* newBook = (Book*)malloc(sizeof(Book));
+        strcpy(newBook->title, biologyTitles[i]);
+        strcpy(newBook->author, biologyAuthors[i]);
+        newBook->isBorrowed = 0;
+        newBook->dueDate = 0;
+        library[7].books[library[7].bookCount++] = newBook;
+    }
+
+  
+    const char* literatureTitles[] = {
+        "To Kill a Mockingbird", "1984", "Pride and Prejudice", 
+        "The Great Gatsby", "One Hundred Years of Solitude", 
+        "War and Peace", "Ulysses", "The Catcher in the Rye", 
+        "The Brothers Karamazov", "Crime and Punishment", 
+        "Anna Karenina", "The Odyssey", "The Iliad", 
+        "Don Quixote", "Moby-Dick", "The Divine Comedy", 
+        "Hamlet", "Macbeth", "The Canterbury Tales", 
+        "Wuthering Heights", "Jane Eyre", "Frankenstein", 
+        "Brave New World", "The Lord of the Rings", 
+        "The Hobbit"
+    };
+    const char* literatureAuthors[] = {
+        "Harper Lee", "George Orwell", "Jane Austen", 
+        "F. Scott Fitzgerald", "Gabriel García Márquez", 
+        "Leo Tolstoy", "James Joyce", "J.D. Salinger", 
+        "Fyodor Dostoevsky", "Fyodor Dostoevsky", 
+        "Leo Tolstoy", "Homer", "Homer", 
+        "Miguel de Cervantes", "Herman Melville", "Dante Alighieri", 
+        "William Shakespeare", "William Shakespeare", "Geoffrey Chaucer", 
+        "Emily Brontë", "Charlotte Brontë", "Mary Shelley", 
+        "Aldous Huxley", "J.R.R. Tolkien", "J.R.R. Tolkien"
+    };
+    for (int i = 0; i < 25; i++) {
+        Book* newBook = (Book*)malloc(sizeof(Book));
+        strcpy(newBook->title, literatureTitles[i]);
+        strcpy(newBook->author, literatureAuthors[i]);
+        newBook->isBorrowed = 0;
+        newBook->dueDate = 0;
+        library[8].books[library[8].bookCount++] = newBook;
+    }
+}
+
+void displayBooks(int sectionIndex) {
+    if (sectionIndex < 0 || sectionIndex >= NUM_SECTIONS) {
+        printf("Invalid section index.\n");
+        return;
+    }
+
+    printf("\nBooks in %s:\n", library[sectionIndex].name);
+    for (int i = 0; i < library[sectionIndex].bookCount; i++) {
+        Book* book = library[sectionIndex].books[i];
+        printf("%d. %s by %s", i+1, book->title, book->author);
+        if (book->isBorrowed) {
+            printf(" [Borrowed - Due: ");
+            printDate(book->dueDate);
+            printf("]");
+        }
+        printf("\n");
+    }
+}
+
+int findUserByEntry(const char* entryNumber) {
+    for (int i = 0; i < userCount; i++) {
+        if (strcmp(users[i].entryNumber, entryNumber) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void borrowBook() {
+    if (userCount >= MAX_USERS) {
+        printf("Maximum user limit reached.\n");
+        return;
+    }
+
+    char name[50];
+    printf("\nEnter your name: ");
+    scanf(" %[^\n]", name);
+    clearInputBuffer();
+
+    char entryNumber[20];
+    printf("Enter your entry number: ");
+    scanf(" %[^\n]", entryNumber);
+    clearInputBuffer();
+
+    int userIndex = findUserByEntry(entryNumber);
+
+    if (userIndex == -1) {
+        userIndex = userCount++;
+        strncpy(users[userIndex].name, name, sizeof(users[userIndex].name) - 1);
+        strncpy(users[userIndex].entryNumber, entryNumber, sizeof(users[userIndex].entryNumber) - 1);
+        users[userIndex].borrowedCount = 0;
+        users[userIndex].lateFees = 0.0;
+    }
+
+    if (users[userIndex].borrowedCount >= MAX_BORROWED) {
+        printf("You've reached the maximum borrowing limit (%d books).\n", MAX_BORROWED);
+        return;
+    }
+
+    printf("\nAvailable Sections:\n");
+    for (int i = 0; i < NUM_SECTIONS; i++) {
+        printf("%d. %s\n", i + 1, library[i].name);
+    }
+
+    int sectionChoice = readInt("Enter section number: ") - 1;
+    if (sectionChoice < 0 || sectionChoice >= NUM_SECTIONS) {
+        printf("Invalid section choice.\n");
+        return;
+    }
+
+    displayBooks(sectionChoice);
+
+    int bookChoice = readInt("Enter book number to borrow (0 to cancel): ") - 1;
+    if (bookChoice == -1) {
+        printf("Borrowing cancelled.\n");
+        return;
+    }
+
+    if (bookChoice < 0 || bookChoice >= library[sectionChoice].bookCount) {
+        printf("Invalid book selection.\n");
+        return;
+    }
+
+    Book* book = library[sectionChoice].books[bookChoice];
+    if (book->isBorrowed) {
+        printf("This book is already borrowed.\n");
+        return;
+    }
+
+    time_t dueDate = getDueDate();
+    book->isBorrowed = 1;
+    book->dueDate = dueDate;
+    
+    users[userIndex].borrowedBooks[users[userIndex].borrowedCount][0] = sectionChoice;
+    users[userIndex].borrowedBooks[users[userIndex].borrowedCount][1] = bookChoice;
+    users[userIndex].dueDates[users[userIndex].borrowedCount] = dueDate;
+    users[userIndex].borrowedCount++;
+
+    printf("\nSuccessfully borrowed: %s by %s\n", book->title, book->author);
+    printf("Due Date: ");
+    printDate(dueDate);
+    printf(" (31 days from today)\n");
+}
+
+void returnBook() {
+    char entryNumber[20];
+    printf("\nEnter your entry number: ");
+    scanf(" %[^\n]", entryNumber);
+    clearInputBuffer();
+
+    int userIndex = findUserByEntry(entryNumber);
+
+    if (userIndex == -1) {
+        printf("User not found.\n");
+        return;
+    }
+
+    if (users[userIndex].borrowedCount == 0) {
+        printf("You have no books to return.\n");
+        return;
+    }
+
+    printf("\nYour Borrowed Books:\n");
+    for (int i = 0; i < users[userIndex].borrowedCount; i++) {
+        int sectionIndex = users[userIndex].borrowedBooks[i][0];
+        int bookIndex = users[userIndex].borrowedBooks[i][1];
+        Book* book = library[sectionIndex].books[bookIndex];
+        printf("%d. %s by %s (Due: ", i+1, book->title, book->author);
+        printDate(book->dueDate);
+        printf(")\n");
+    }
+
+    int returnChoice = readInt("Enter book number to return (0 to cancel): ") - 1;
+    if (returnChoice == -1) {
+        printf("Return cancelled.\n");
+        return;
+    }
+
+    if (returnChoice < 0 || returnChoice >= users[userIndex].borrowedCount) {
+        printf("Invalid selection.\n");
+        return;
+    }
+
+    int sectionIndex = users[userIndex].borrowedBooks[returnChoice][0];
+    int bookIndex = users[userIndex].borrowedBooks[returnChoice][1];
+    Book* book = library[sectionIndex].books[bookIndex];
+
+    time_t now = time(NULL);
+    if (now > book->dueDate) {
+        double daysLate = difftime(now, book->dueDate) / (60 * 60 * 24);
+        float fee = daysLate * 0.50;
+        users[userIndex].lateFees += fee;
+        printf("Late return! Fee: ₹%.2f\n", fee);
+    }
+
+    book->isBorrowed = 0;
+    book->dueDate = 0;
+    printf("Successfully returned: %s\n", book->title);
+
+    for (int i = returnChoice; i < users[userIndex].borrowedCount - 1; i++) {
+        users[userIndex].borrowedBooks[i][0] = users[userIndex].borrowedBooks[i+1][0];
+        users[userIndex].borrowedBooks[i][1] = users[userIndex].borrowedBooks[i+1][1];
+        users[userIndex].dueDates[i] = users[userIndex].dueDates[i+1];
+    }
+    users[userIndex].borrowedCount--;
+}
+
+void cleanupLibrary() {
+    for (int i = 0; i < NUM_SECTIONS; i++) {
+        for (int j = 0; j < library[i].bookCount; j++) {
+            free(library[i].books[j]);
+        }
+    }
+}
+
+void mainMenu() {
+    int choice;
+    do {
+        printf("\n===== Library Management System =====\n");
+        printf("1. View Section Books\n");
+        printf("2. Borrow Book\n");
+        printf("3. Return Book\n");
+        printf("4. View User Details\n");
+        printf("0. Exit\n");
+
+        choice = readInt("Enter your choice: ");
+
+        switch (choice) {
+            case 0:
+                printf("Exiting...\n");
+                break;
+            case 1: {
+                printf("\nAvailable Sections:\n");
+                for (int i = 0; i < NUM_SECTIONS; i++) {
+                    printf("%d. %s\n", i + 1, library[i].name);
+                }
+                int section = readInt("Enter section number: ") - 1;
+                if (section >= 0 && section < NUM_SECTIONS) {
+                    displayBooks(section);
+                } else {
+                    printf("Invalid section.\n");
+                }
+                break;
+            }
+            case 2:
+                borrowBook();
+                break;
+            case 3:
+                returnBook();
+                break;
+            case 4: {
+                char entryNumber[20];
+                printf("Enter your entry number: ");
+                scanf(" %[^\n]", entryNumber);
+                clearInputBuffer();
+                int userIndex = findUserByEntry(entryNumber);
+                if (userIndex == -1) {
+                    printf("User not found.\n");
+                } else {
+                    printf("\nUser: %s (Entry: %s)\n", users[userIndex].name, users[userIndex].entryNumber);
+                    printf("Borrowed Books (%d):\n", users[userIndex].borrowedCount);
+                    for (int i = 0; i < users[userIndex].borrowedCount; i++) {
+                        int s = users[userIndex].borrowedBooks[i][0];
+                        int b = users[userIndex].borrowedBooks[i][1];
+                        printf("- %s (Due: ", library[s].books[b]->title);
+                        printDate(users[userIndex].dueDates[i]);
+                        printf(")\n");
+                    }
+                    printf("Late Fees: ₹%.2f\n", users[userIndex].lateFees);
+                }
+                break;
+            }
+            default:
+                printf("Invalid choice. Try again.\n");
+        }
+    } while (choice != 0);
+}
+
+int main() {
+    initializeLibrary();
+    mainMenu();
+    cleanupLibrary();
+    return 0;
+}
